@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: SECOP Semantic Search API
+  version: 1.0.0
+  description: Semantic search + email-alert API over SECOP II active tenders
+    (Socrata dataset p6dx-8zbt).
+servers:
+  - url: https://secop-api.<account>.workers.dev
+    description: workers.dev preview
+tags:
+  - name: meta
+    description: Health and machine-readable contract
+  - name: catalog
+    description: Sector picker + facet counts
+  - name: search
+    description: Semantic search and per-tender lookup
+  - name: alerts
+    description: Email-alert subscription management
+components:
+  schemas:
+    Probe:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - fail
+            - timeout
+        latency_ms:
+          type:
+            - number
+            - "null"
+        checked_at:
+          type: string
+        detail:
+          type: string
+      required:
+        - status
+        - latency_ms
+        - checked_at
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        phase:
+          type: string
+        started_at:
+          type: string
+        checks:
+          type: object
+          properties:
+            turso:
+              $ref: "#/components/schemas/Probe"
+            workers_ai:
+              $ref: "#/components/schemas/Probe"
+            last_ingest_age_s:
+              type:
+                - number
+                - "null"
+            last_enrich_age_s:
+              type:
+                - number
+                - "null"
+          required:
+            - turso
+            - workers_ai
+            - last_ingest_age_s
+            - last_enrich_age_s
+      required:
+        - status
+        - phase
+        - started_at
+        - checks
+    Sector:
+      type: object
+      properties:
+        segment:
+          type: string
+        tender_count:
+          type: integer
+          minimum: 0
+      required:
+        - segment
+        - tender_count
+    SectorsResponse:
+      type: object
+      properties:
+        sectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sector"
+      required:
+        - sectors
+    FacetEntry:
+      type: object
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+      required:
+        - value
+        - count
+    FacetsResponse:
+      type: object
+      properties:
+        modalidad:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacetEntry"
+        estado:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacetEntry"
+        departamento:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacetEntry"
+      required:
+        - modalidad
+        - estado
+        - departamento
+    Summary:
+      type:
+        - object
+        - "null"
+      properties:
+        resumen:
+          type: string
+        requisitos_clave:
+          type: array
+          items:
+            type: string
+        perfil_proveedor:
+          type: string
+      required:
+        - resumen
+        - requisitos_clave
+        - perfil_proveedor
+    Tender:
+      type: object
+      properties:
+        id:
+          type: string
+        entidad:
+          type:
+            - string
+            - "null"
+        nit_entidad:
+          type:
+            - string
+            - "null"
+        departamento:
+          type:
+            - string
+            - "null"
+        ciudad:
+          type:
+            - string
+            - "null"
+        objeto:
+          type:
+            - string
+            - "null"
+        nombre:
+          type:
+            - string
+            - "null"
+        unspsc:
+          type:
+            - string
+            - "null"
+        unspsc_segment:
+          type:
+            - string
+            - "null"
+        modalidad:
+          type:
+            - string
+            - "null"
+        tipo_contrato:
+          type:
+            - string
+            - "null"
+        subtipo_contrato:
+          type:
+            - string
+            - "null"
+        precio_base:
+          type:
+            - number
+            - "null"
+        estado:
+          type:
+            - string
+            - "null"
+        fase:
+          type:
+            - string
+            - "null"
+        fecha_publicacion:
+          type:
+            - string
+            - "null"
+        fecha_ultima:
+          type:
+            - string
+            - "null"
+        fecha_recepcion:
+          type:
+            - string
+            - "null"
+        url:
+          type:
+            - string
+            - "null"
+        summary:
+          $ref: "#/components/schemas/Summary"
+      required:
+        - id
+        - entidad
+        - nit_entidad
+        - departamento
+        - ciudad
+        - objeto
+        - nombre
+        - unspsc
+        - unspsc_segment
+        - modalidad
+        - tipo_contrato
+        - subtipo_contrato
+        - precio_base
+        - estado
+        - fase
+        - fecha_publicacion
+        - fecha_ultima
+        - fecha_recepcion
+        - url
+        - summary
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - NOT_FOUND
+        - RATE_LIMITED
+        - TOKEN_INVALID
+        - TOKEN_EXPIRED
+        - INTERNAL
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              $ref: "#/components/schemas/ErrorCode"
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: {}
+          required:
+            - code
+            - message
+      required:
+        - error
+    SearchHit:
+      allOf:
+        - $ref: "#/components/schemas/Tender"
+        - type: object
+          properties:
+            score:
+              type: number
+          required:
+            - score
+    SearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHit"
+        next_cursor:
+          type:
+            - string
+            - "null"
+      required:
+        - items
+        - next_cursor
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        unspsc_segments:
+          type: array
+          items:
+            type: string
+            pattern: ^\d{2}$
+          maxItems: 20
+        min_value:
+          type: number
+          minimum: 0
+        max_value:
+          type: number
+          minimum: 0
+        modalidad:
+          type: string
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 100
+        cursor:
+          type: string
+      required:
+        - query
+  parameters: {}
+paths:
+  /v1/health:
+    get:
+      tags:
+        - meta
+      summary: Liveness + downstream checks
+      responses:
+        "200":
+          description: service is reachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /v1/sectors:
+    get:
+      tags:
+        - catalog
+      summary: UNSPSC segments with tender counts
+      responses:
+        "200":
+          description: list of segments currently represented in active tenders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectorsResponse"
+  /v1/facets:
+    get:
+      tags:
+        - catalog
+      summary: Counts grouped by modalidad / estado / departamento
+      responses:
+        "200":
+          description: facet counts over active tenders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacetsResponse"
+  /v1/tenders/{id}:
+    get:
+      tags:
+        - search
+      summary: Full normalized tender + AI summary
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: tender found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tender"
+        "404":
+          description: tender not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/search:
+    post:
+      tags:
+        - search
+      summary: Semantic search over active tenders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200":
+          description: ranked tenders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+webhooks: {}

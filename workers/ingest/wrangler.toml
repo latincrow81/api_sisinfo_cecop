@@ -1,0 +1,14 @@
+name = "secop-ingest"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+workers_dev = true            # /admin/backfill needs to be reachable; ADMIN_TOKEN gates it.
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[[r2_buckets]]
+binding = "RAW"
+bucket_name = "secop-raw"
+
+[observability]
+enabled = true

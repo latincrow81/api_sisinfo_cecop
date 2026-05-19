@@ -1,0 +1,32 @@
+name = "secop-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+# Daily quota check (Phase P5). Reads ai_usage + alerts and posts to QUOTA_WEBHOOK_URL
+# when any metric crosses 70%.
+[triggers]
+crons = ["0 23 * * *"]
+
+[vars]
+# Comma-separated. `*.vercel.app` is the only wildcard supported and matches any
+# subdomain of vercel.app for preview deploys. Override per environment as needed.
+ALLOWED_ORIGINS = "http://localhost:3000,*.vercel.app"
+
+# Self-URL used to construct magic-link and unsubscribe URLs in outbound emails. Update
+# to the custom domain (or production workers.dev URL) before deploying.
+API_BASE_URL = "https://secop-api.example.workers.dev"
+
+# Resend "From" address. Must be on a domain you've verified in Resend.
+ALERT_EMAIL_FROM = "SECOP Alertas <alertas@example.com>"
+
+# Secrets (wrangler secret put):
+#   TURSO_URL, TURSO_TOKEN, HMAC_SECRET, RESEND_API_KEY
+#   ADMIN_TOKEN          gates /admin/stats
+#   QUOTA_WEBHOOK_URL    Slack/Discord incoming webhook for daily quota warnings (optional)
+
+[observability]
+enabled = true

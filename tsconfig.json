@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./shared" },
+    { "path": "./workers/api" },
+    { "path": "./workers/ingest" },
+    { "path": "./workers/enrich" },
+    { "path": "./workers/match" }
+  ]
+}

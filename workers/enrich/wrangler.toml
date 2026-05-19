@@ -1,0 +1,14 @@
+name = "secop-enrich"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+workers_dev = true            # /admin/enrich needs to be reachable; ADMIN_TOKEN gates it.
+
+# Fires 15 minutes after each ingest cron so newly-ingested rows get processed promptly.
+[triggers]
+crons = ["15 */6 * * *"]
+
+[ai]
+binding = "AI"
+
+[observability]
+enabled = true

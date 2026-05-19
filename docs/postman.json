@@ -1,0 +1,120 @@
+{
+  "info": {
+    "name": "SECOP Semantic Search API",
+    "description": "Manual testing collection. Mirrors openapi.yaml. Fill in {{baseUrl}} and {{adminToken}} in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8787" },
+    { "key": "adminToken", "value": "" },
+    { "key": "alertToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "meta",
+      "item": [
+        {
+          "name": "GET /v1/health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/health" }
+        },
+        {
+          "name": "GET /v1/openapi.yaml",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/openapi.yaml" }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "item": [
+        {
+          "name": "GET /v1/sectors",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/sectors" }
+        },
+        {
+          "name": "GET /v1/facets",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/facets" }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "item": [
+        {
+          "name": "POST /v1/search",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/search",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mantenimiento de equipos de cómputo\",\n  \"unspsc_segments\": [\"43\"],\n  \"min_value\": 10000000,\n  \"max_value\": 200000000,\n  \"top_k\": 20\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /v1/tenders/{id}",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/tenders/REPLACE_ME" }
+        }
+      ]
+    },
+    {
+      "name": "alerts",
+      "item": [
+        {
+          "name": "POST /v1/alerts",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/alerts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"query\": \"mantenimiento de equipos de cómputo\",\n  \"unspsc_segments\": [\"43\"],\n  \"min_value\": 10000000,\n  \"max_value\": 200000000\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /v1/alerts/verify?token=",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/alerts/verify?token={{alertToken}}" }
+        },
+        {
+          "name": "GET /v1/alerts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/alerts?email=you@example.com&token={{alertToken}}" }
+        },
+        {
+          "name": "PATCH /v1/alerts/{id}",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/v1/alerts/REPLACE_ME?token={{alertToken}}",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"min_score\": 0.6\n}" }
+          }
+        },
+        {
+          "name": "DELETE /v1/alerts/{id}",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/alerts/REPLACE_ME?token={{alertToken}}" }
+        }
+      ]
+    },
+    {
+      "name": "admin",
+      "item": [
+        {
+          "name": "POST /admin/backfill",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/backfill",
+            "header": [{ "key": "authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "POST /admin/enrich",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/enrich",
+            "header": [{ "key": "authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        }
+      ]
+    }
+  ]
+}

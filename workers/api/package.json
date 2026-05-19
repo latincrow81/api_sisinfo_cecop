@@ -1,0 +1,16 @@
+{
+  "name": "@secop/worker-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run --outdir=dist"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "^0.18.0",
+    "@secop/shared": "*",
+    "hono": "^4.6.0"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "secop-semantic-search-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Semantic search + email-alert API over SECOP II active tenders. See API_PLAN.md.",
+  "workspaces": [
+    "shared",
+    "workers/api",
+    "workers/ingest",
+    "workers/enrich",
+    "workers/match"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b --pretty",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "deploy:dry": "npm -ws --if-present run deploy:dry",
+    "openapi:generate": "tsx scripts/generate-openapi.ts openapi.yaml",
+    "openapi:check": "tsx scripts/check-openapi-drift.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.100.0",
+    "yaml": "^2.6.0"
+  }
+}

@@ -1,0 +1,96 @@
+// Maps a raw Socrata row (dataset p6dx-8zbt) to the `tenders` columns.
+// Field names that are gotchas per API_PLAN §2 are authoritative:
+//   descripci_n_del_procedimiento, fecha_de_ultima_publicaci, urlproceso (URL object).
+// Non-gotcha names below are standard SECOP II conventions; if any prove wrong on the
+// first live run, edit the FIELD_MAP comment block only — the rest stays stable.
+
+export interface RawSocrataTender {
+  id_del_proceso?: string;
+  entidad?: string;
+  nit_entidad?: string;
+  departamento_entidad?: string;
+  ciudad_entidad?: string;
+  descripci_n_del_procedimiento?: string;
+  nombre_del_procedimiento?: string;
+  codigo_principal_de_categoria?: string;
+  modalidad_de_contratacion?: string;
+  tipo_de_contrato?: string;
+  subtipo_de_contrato?: string;
+  precio_base?: string | number;
+  estado_del_procedimiento?: string;
+  fase?: string;
+  fecha_de_publicacion_del?: string;
+  fecha_de_ultima_publicaci?: string;
+  fecha_de_recepcion_de?: string;
+  urlproceso?: { url?: string } | string;
+  [k: string]: unknown;
+}
+
+export interface NormalizedTender {
+  id: string;
+  entidad: string | null;
+  nit_entidad: string | null;
+  departamento: string | null;
+  ciudad: string | null;
+  objeto: string | null;
+  nombre: string | null;
+  unspsc: string | null;
+  modalidad: string | null;
+  tipo_contrato: string | null;
+  subtipo_contrato: string | null;
+  precio_base: number | null;
+  estado: string | null;
+  fase: string | null;
+  fecha_publicacion: string | null;
+  fecha_ultima: string | null;
+  fecha_recepcion: string | null;
+  url: string | null;
+  ingested_at: string;
+}
+
+function str(v: unknown): string | null {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return s.length === 0 ? null : s;
+}
+
+function num(v: unknown): number | null {
+  if (v === undefined || v === null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number.parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
+function flattenUrl(v: RawSocrataTender['urlproceso']): string | null {
+  if (!v) return null;
+  if (typeof v === 'string') return v.length > 0 ? v : null;
+  return v.url && v.url.length > 0 ? v.url : null;
+}
+
+export function normalizeTender(
+  row: RawSocrataTender,
+  ingestedAt: string,
+): NormalizedTender | null {
+  const id = str(row.id_del_proceso);
+  if (!id) return null;
+  return {
+    id,
+    entidad: str(row.entidad),
+    nit_entidad: str(row.nit_entidad),
+    departamento: str(row.departamento_entidad),
+    ciudad: str(row.ciudad_entidad),
+    objeto: str(row.descripci_n_del_procedimiento),
+    nombre: str(row.nombre_del_procedimiento),
+    unspsc: str(row.codigo_principal_de_categoria),
+    modalidad: str(row.modalidad_de_contratacion),
+    tipo_contrato: str(row.tipo_de_contrato),
+    subtipo_contrato: str(row.subtipo_de_contrato),
+    precio_base: num(row.precio_base),
+    estado: str(row.estado_del_procedimiento),
+    fase: str(row.fase),
+    fecha_publicacion: str(row.fecha_de_publicacion_del),
+    fecha_ultima: str(row.fecha_de_ultima_publicaci),
+    fecha_recepcion: str(row.fecha_de_recepcion_de),
+    url: flattenUrl(row.urlproceso),
+    ingested_at: ingestedAt,
+  };
+}

@@ -1,0 +1,23 @@
+name = "secop-match"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+workers_dev = true            # /admin/match needs to be reachable; ADMIN_TOKEN gates it.
+
+# Fires 30 min after each ingest, 15 min after each enrich — enough buffer for the
+# enrich worker to finish populating newly-ingested rows.
+[triggers]
+crons = ["30 */6 * * *"]
+
+[vars]
+# Used to construct the unsubscribe URL embedded in every digest. Must match the api
+# worker's API_BASE_URL since that's where unsubscribe is served from.
+API_BASE_URL = "https://secop-api.example.workers.dev"
+
+# Same as the api worker.
+ALERT_EMAIL_FROM = "SECOP Alertas <alertas@example.com>"
+
+# Secrets (wrangler secret put):
+#   TURSO_URL, TURSO_TOKEN, HMAC_SECRET, RESEND_API_KEY, ADMIN_TOKEN
+
+[observability]
+enabled = true

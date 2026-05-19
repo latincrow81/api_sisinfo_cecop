@@ -1,0 +1,21 @@
+{
+  "name": "@secop/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./socrata": "./src/socrata.ts",
+    "./tursoClient": "./src/tursoClient.ts",
+    "./normalize": "./src/normalize.ts",
+    "./ai": "./src/ai.ts",
+    "./hmac": "./src/hmac.ts",
+    "./email": "./src/email.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "zod": "^3.24.0"
+  }
+}
