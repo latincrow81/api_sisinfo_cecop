@@ -1,7 +1,9 @@
-// Single ingest cycle: paged Socrata pull → gzip raw to R2 → upsert into Turso → advance
-// watermark. The where-clause is computed ONCE at the start of the run so pagination is
-// stable; any rows added during the run will be caught next time.
+// Single ingest cycle: paged Socrata pull → gzip raw to S3-compatible object storage
+// (Linode) → upsert into Turso → advance watermark. The where-clause is computed ONCE
+// at the start of the run so pagination is stable; any rows added during the run will
+// be caught next time.
 
+import { AwsClient } from 'aws4fetch';
 import {
   buildOpenTendersWhere,
   DATASET_ID,
@@ -17,7 +19,11 @@ import {
 const MAX_PAGES_PER_RUN = 50; // 50_000-row safety cap. Open set is ~2.2k per API_PLAN §2.
 
 export interface IngestEnv {
-  RAW: R2Bucket;
+  S3_ENDPOINT: string;
+  S3_REGION: string;
+  S3_BUCKET: string;
+  S3_ACCESS_KEY_ID: string;
+  S3_SECRET_ACCESS_KEY: string;
   SOCRATA_APP_TOKEN?: string | undefined;
 }
 
@@ -134,6 +140,14 @@ export async function ingest(
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE;
   const maxPages = opts.maxPages ?? MAX_PAGES_PER_RUN;
 
+  const s3 = new AwsClient({
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    region: env.S3_REGION,
+    service: 's3',
+  });
+  const s3Base = env.S3_ENDPOINT.replace(/\/+$/, '');
+
   const watermarkUsed = opts.since !== undefined ? opts.since : await readWatermark(turso);
 
   // Fixed for the whole run so $offset pagination is stable.
@@ -152,15 +166,22 @@ export async function ingest(
     );
     if (raw.length === 0) break;
 
-    // R2 audit lands before any DB mutation so we can always replay a run from raw.
+    // Raw audit lands before any DB mutation so we can always replay a run from object storage.
     const gz = await gzipJson(raw);
-    await env.RAW.put(
-      `raw/dt=${dt}/${runIdStr}-${String(pages).padStart(4, '0')}.json.gz`,
-      gz,
-      {
-        httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
+    const key = `raw/dt=${dt}/${runIdStr}-${String(pages).padStart(4, '0')}.json.gz`;
+    const putRes = await s3.fetch(`${s3Base}/${env.S3_BUCKET}/${key}`, {
+      method: 'PUT',
+      body: gz,
+      headers: {
+        'content-type': 'application/json',
+        'content-encoding': 'gzip',
       },
-    );
+    });
+    if (!putRes.ok) {
+      throw new Error(
+        `s3 PUT ${key} failed: ${putRes.status} ${putRes.statusText} ${await putRes.text()}`,
+      );
+    }
 
     const ingestedAt = new Date().toISOString();
     const normalized: NormalizedTender[] = [];

@@ -9,6 +9,7 @@
     "deploy:dry": "wrangler deploy --dry-run --outdir=dist"
   },
   "dependencies": {
-    "@secop/shared": "*"
+    "@secop/shared": "*",
+    "aws4fetch": "^1.0.20"
   }
 }

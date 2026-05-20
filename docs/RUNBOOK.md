@@ -68,23 +68,34 @@ or deploy them and they'll return `501`.
 
 ## Phase P1 — Ingest worker
 
-### 1. Create the R2 bucket (one-time)
+### 1. Linode Object Storage bucket (one-time)
 
-```bash
-cd workers/ingest
-npx wrangler r2 bucket create secop-raw
-```
+We use Linode Object Storage (S3-compatible) for raw audit batches — R2 is paid, Linode
+fits the free/cheap tier. Create the bucket in the Linode Cloud Manager (or `linode-cli`):
+
+1. Linode Cloud Manager → Object Storage → Create Bucket.
+2. Pick a region (e.g. `us-east-1`, `eu-central-1`). Note both the **cluster URL**
+   (`https://<region>.linodeobjects.com`) and the **region id** — they go in
+   `workers/ingest/wrangler.toml` `[vars]`.
+3. Object Storage → Access Keys → Create access key. Scope it to this bucket
+   (read+write). Save the **access key** and **secret key** — the secret is shown once.
+
+Edit `workers/ingest/wrangler.toml` `[vars]` so `S3_ENDPOINT`, `S3_REGION`, and `S3_BUCKET`
+match what you just created. (Defaults: `us-east-1.linodeobjects.com` / `us-east-1` /
+`secop-raw`.)
 
 ### 2. Set ingest secrets
 
-`TURSO_URL`, `TURSO_TOKEN`, `ADMIN_TOKEN` are required. `SOCRATA_APP_TOKEN` is optional
-but recommended.
+`TURSO_URL`, `TURSO_TOKEN`, `ADMIN_TOKEN`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`
+are required. `SOCRATA_APP_TOKEN` is optional but recommended.
 
 ```bash
 cd workers/ingest
 cat ../../.turso-token | npx wrangler secret put TURSO_TOKEN
 echo "<libsql URL>"    | npx wrangler secret put TURSO_URL
 openssl rand -base64 32 | npx wrangler secret put ADMIN_TOKEN
+echo "<linode access key>"  | npx wrangler secret put S3_ACCESS_KEY_ID
+echo "<linode secret key>"  | npx wrangler secret put S3_SECRET_ACCESS_KEY
 # optional:
 echo "<socrata token>" | npx wrangler secret put SOCRATA_APP_TOKEN
 ```
@@ -128,8 +139,9 @@ Expected response:
 ### 4. Sanity checks
 
 ```bash
-# R2 has gzipped batches:
-npx wrangler r2 object list secop-raw --prefix "raw/dt=$(date -u +%F)"
+# Linode Object Storage has gzipped batches — easiest is the Cloud Manager UI, or:
+linode-cli obj ls "$S3_BUCKET/raw/dt=$(date -u +%F)/"
+#   ($S3_BUCKET defaults to "secop-raw"; configure linode-cli with the same access key.)
 
 # Turso has rows and no embeddings yet:
 turso db shell secop "SELECT COUNT(*) AS n, SUM(embedding IS NULL) AS no_embed FROM tenders;"
@@ -156,8 +168,8 @@ npx wrangler triggers list
 
 - **Re-pull the whole open set:** `POST /admin/backfill?since=` (empty value)
 - **Re-pull from a known point:** `POST /admin/backfill?since=2026-05-01T00:00:00`
-- **Wipe and rebuild from R2:** drop `tenders`, re-apply `0001_init.sql`, replay the latest
-  R2 objects through the normalizer (script TBD in P5).
+- **Wipe and rebuild from object storage:** drop `tenders`, re-apply `0001_init.sql`, replay
+  the latest Linode Object Storage objects through the normalizer (script TBD in P5).
 
 ---
 
@@ -597,7 +609,7 @@ If you change DNS providers, rotate the domain, or the SPF/DKIM record drifts:
 | Workers AI neurons | `/admin/stats` → `ai.neurons_used` | Daily webhook at 70%+ |
 | Resend sends/day | `/admin/stats` → `email.sent_today` | Daily webhook at 70%+ |
 | Turso storage / row reads | Turso dashboard → DB → Usage | Manual |
-| R2 storage / Class A ops | Cloudflare dashboard → R2 → secop-raw → Metrics | Manual |
+| Linode Object Storage size / requests | Linode Cloud Manager → Object Storage → bucket → Usage | Manual |
 | Workers requests | Cloudflare dashboard → Workers → secop-api → Analytics | Manual |
 
 - Rotate Resend / Turso / HMAC secrets

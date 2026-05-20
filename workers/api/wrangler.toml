@@ -18,10 +18,10 @@ ALLOWED_ORIGINS = "http://localhost:3000,*.vercel.app"
 
 # Self-URL used to construct magic-link and unsubscribe URLs in outbound emails. Update
 # to the custom domain (or production workers.dev URL) before deploying.
-API_BASE_URL = "https://secop-api.example.workers.dev"
+API_BASE_URL = "https://secop-api.mescude1.workers.dev"
 
 # Resend "From" address. Must be on a domain you've verified in Resend.
-ALERT_EMAIL_FROM = "SECOP Alertas <alertas@example.com>"
+ALERT_EMAIL_FROM = "SECOP Alertas <mescude1@eafit.edu.co>"
 
 # Secrets (wrangler secret put):
 #   TURSO_URL, TURSO_TOKEN, HMAC_SECRET, RESEND_API_KEY
