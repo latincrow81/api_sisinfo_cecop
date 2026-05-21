@@ -41,13 +41,18 @@ export async function fetchPage<T = unknown>(
 
 export interface BuildWhereOpts {
   watermark: string | null;
+  now?: Date;
 }
 
 // Composes the "open and SME-relevant" predicate (API_PLAN §2). The watermark filter is
 // included only when present so first runs scan the full open set without skipping rows
 // older than NULL.
-export function buildOpenTendersWhere({ watermark }: BuildWhereOpts): string {
-  const clauses = [`estado_del_procedimiento='Publicado'`, `fecha_de_recepcion_de > now()`];
+//
+// SoQL has no now() function — comparisons against the current time must use a floating
+// timestamp literal (no Z suffix). `now` is injectable so tests don't depend on wall clock.
+export function buildOpenTendersWhere({ watermark, now = new Date() }: BuildWhereOpts): string {
+  const nowLit = now.toISOString().replace(/Z$/, '');
+  const clauses = [`estado_del_procedimiento='Publicado'`, `fecha_de_recepcion_de > '${nowLit}'`];
   if (watermark) {
     // Watermark comes from our own DB so it is trusted; still strip single quotes defensively.
     const safe = watermark.replace(/'/g, '');

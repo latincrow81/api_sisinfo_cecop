@@ -14,5 +14,6 @@ export declare const DEFAULT_ORDER = "fecha_de_ultima_publicaci ASC";
 export declare function fetchPage<T = unknown>(opts: SocrataPageOptions, auth?: SocrataAuth): Promise<T[]>;
 export interface BuildWhereOpts {
     watermark: string | null;
+    now?: Date;
 }
-export declare function buildOpenTendersWhere({ watermark }: BuildWhereOpts): string;
+export declare function buildOpenTendersWhere({ watermark, now }: BuildWhereOpts): string;

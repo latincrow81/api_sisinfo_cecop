@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "deploy:dry": "npm -ws --if-present run deploy:dry",
     "openapi:generate": "tsx scripts/generate-openapi.ts openapi.yaml",
-    "openapi:check": "tsx scripts/check-openapi-drift.ts"
+    "openapi:check": "tsx scripts/check-openapi-drift.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260101.0",

@@ -222,31 +222,42 @@ export function registerRoutes(app: OpenAPIHono<{ Bindings: ApiBindings; Variabl
       const now = new Date().toISOString();
 
       const db = turso(c.env);
-      const res = await db.execute({
-        sql: `
-          SELECT ${TENDER_COLUMNS},
-                 vector_distance_cos(t.embedding, :qvec) AS score
-          FROM vector_top_k('idx_tenders_vec', :qvec, :knn_k) AS knn
-          JOIN tenders t ON t.rowid = knn.id
-          WHERE t.estado = 'Publicado'
-            AND t.fecha_recepcion > :now
-            AND (:segments IS NULL OR t.unspsc_segment IN (SELECT value FROM json_each(:segments)))
-            AND t.precio_base BETWEEN :min_v AND :max_v
-            AND (:modalidad IS NULL OR t.modalidad = :modalidad)
-          ORDER BY score ASC
-          LIMIT :top_k
-        `,
-        args: {
-          qvec,
-          knn_k: knnK,
-          now,
-          segments: segmentsJson,
-          min_v: minV,
-          max_v: maxV,
-          modalidad,
-          top_k: topK,
-        },
-      });
+
+      // vector_top_k throws when idx_tenders_vec is empty or sparsely populated
+      // (mid-backfill). Catch the libsql error and return 200 + empty items so
+      // clients see a clean "no results yet" state instead of 500.
+      let res;
+      try {
+        res = await db.execute({
+          sql: `
+            SELECT ${TENDER_COLUMNS},
+                   vector_distance_cos(t.embedding, :qvec) AS score
+            FROM vector_top_k('idx_tenders_vec', :qvec, :knn_k) AS knn
+            JOIN tenders t ON t.rowid = knn.id
+            WHERE t.estado = 'Publicado'
+              AND t.fecha_recepcion > :now
+              AND (:segments IS NULL OR t.unspsc_segment IN (SELECT value FROM json_each(:segments)))
+              AND t.precio_base BETWEEN :min_v AND :max_v
+              AND (:modalidad IS NULL OR t.modalidad = :modalidad)
+            ORDER BY score ASC
+            LIMIT :top_k
+          `,
+          args: {
+            qvec,
+            knn_k: knnK,
+            now,
+            segments: segmentsJson,
+            min_v: minV,
+            max_v: maxV,
+            modalidad,
+            top_k: topK,
+          },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('api:search:vector_top_k:fallback', msg);
+        return c.json({ items: [], next_cursor: null }, 200);
+      }
 
       return c.json(
         {

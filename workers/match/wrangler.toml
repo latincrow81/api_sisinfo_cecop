@@ -14,7 +14,7 @@ crons = ["30 */6 * * *"]
 API_BASE_URL = "https://secop-api.mescude1.workers.dev"
 
 # Same as the api worker.
-ALERT_EMAIL_FROM = "SECOP Alertas <mescude1@eafit.edu.co>"
+ALERT_EMAIL_FROM = "SECOP Alertas <secop@azuloso.me>"
 
 # Secrets (wrangler secret put):
 #   TURSO_URL, TURSO_TOKEN, HMAC_SECRET, RESEND_API_KEY, ADMIN_TOKEN
