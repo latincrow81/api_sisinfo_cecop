@@ -230,9 +230,17 @@ export async function enrich(
       stoppedReason = 'embed_call_failed';
       break;
     }
-    let batchNeurons = NEURONS_PER_EMBED_CALL;
-    let batchSummaries = 0;
+
+    // Persist the embed call's neurons immediately so a mid-batch waitUntil
+    // cancellation still credits work already done. (Previously bumpUsage ran
+    // only at the end of the batch loop, so cancellations left ai_usage at 0
+    // and the budget guard always saw "0 used" on the next call.)
     neuronsUsedInRun += NEURONS_PER_EMBED_CALL;
+    await bumpUsage(turso, day, {
+      neurons: NEURONS_PER_EMBED_CALL,
+      embeds: 1,
+      summaries: 0,
+    });
 
     for (let i = 0; i < candidates.length; i++) {
       const c = candidates[i];
@@ -253,9 +261,7 @@ export async function enrich(
 
       const { summary, calls } = await generateSummary(ai, messages);
       const summaryNeurons = NEURONS_PER_SUMMARY_CALL * calls;
-      batchNeurons += summaryNeurons;
       neuronsUsedInRun += summaryNeurons;
-      batchSummaries++;
 
       if (summary) summariesOk++;
       else {
@@ -273,14 +279,16 @@ export async function enrich(
         ],
       });
 
+      // Per-row bump pairs the usage write with the tender write so an interrupted
+      // batch leaves ai_usage consistent with rows_with_embedding.
+      await bumpUsage(turso, day, {
+        neurons: summaryNeurons,
+        embeds: 0,
+        summaries: 1,
+      });
       rowsProcessed++;
     }
 
-    await bumpUsage(turso, day, {
-      neurons: batchNeurons,
-      embeds: 1,
-      summaries: batchSummaries,
-    });
     batches++;
 
     if (candidates.length < batchSize) {
