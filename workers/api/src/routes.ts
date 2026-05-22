@@ -3,7 +3,7 @@
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import { EMBED_DIM, EMBED_MODEL, floatVectorToBlob, turso } from '@secop/shared';
-import { rowToSearchHit, rowToTender, TENDER_COLUMNS } from './db.js';
+import { rowToSearchHit, rowToTender, TENDER_COLUMNS, tenderColumns } from './db.js';
 import { internal, notFound } from './errors.js';
 import { probeAi, probeTurso, readEnrichAge, readIngestAge } from './probes.js';
 import {
@@ -23,6 +23,15 @@ const errorResponse = (description: string) => ({
   description,
   content: { 'application/json': { schema: ErrorEnvelope } },
 });
+
+// libsql throws from vector_top_k when idx_tenders_vec has too few rows for the
+// requested k (common during initial backfill). We can't pin a single canonical
+// message — it varies across libsql versions — so match the vector-related
+// keywords. Any error that doesn't mention the vector index is treated as a real
+// bug and surfaces as a 500.
+function isVectorIndexEmptyError(msg: string): boolean {
+  return /vector_top_k|libsql_vector|vector index/i.test(msg);
+}
 
 export function registerRoutes(app: OpenAPIHono<{ Bindings: ApiBindings; Variables: ApiVariables }>): void {
   // ─── GET /v1/health ───────────────────────────────────────────────────────────────────
@@ -224,13 +233,15 @@ export function registerRoutes(app: OpenAPIHono<{ Bindings: ApiBindings; Variabl
       const db = turso(c.env);
 
       // vector_top_k throws when idx_tenders_vec is empty or sparsely populated
-      // (mid-backfill). Catch the libsql error and return 200 + empty items so
-      // clients see a clean "no results yet" state instead of 500.
+      // (mid-backfill). Catch ONLY that family of libsql errors and return 200 +
+      // empty items so clients see a clean "no results yet" state. Any other SQL
+      // failure (e.g. a column-name bug) bubbles up as a 500 — previously this
+      // catch was permissive and silently masked one such bug for weeks.
       let res;
       try {
         res = await db.execute({
           sql: `
-            SELECT ${TENDER_COLUMNS},
+            SELECT ${tenderColumns('t')},
                    vector_distance_cos(t.embedding, :qvec) AS score
             FROM vector_top_k('idx_tenders_vec', :qvec, :knn_k) AS knn
             JOIN tenders t ON t.rowid = knn.id
@@ -255,8 +266,12 @@ export function registerRoutes(app: OpenAPIHono<{ Bindings: ApiBindings; Variabl
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn('api:search:vector_top_k:fallback', msg);
-        return c.json({ items: [], next_cursor: null }, 200);
+        if (isVectorIndexEmptyError(msg)) {
+          console.warn('api:search:vector_top_k:fallback', msg);
+          return c.json({ items: [], next_cursor: null }, 200);
+        }
+        console.error('api:search:sql:error', msg);
+        throw internal('search query failed', { msg });
       }
 
       return c.json(

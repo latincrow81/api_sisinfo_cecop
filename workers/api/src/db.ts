@@ -62,12 +62,20 @@ export function rowToSearchHit(r: Row): SearchHit {
 
 // Column list for SELECTs that hit the Tender mapper. Excludes embedding (large blob)
 // and uses an explicit list so adding columns to `tenders` doesn't accidentally widen
-// API responses.
-export const TENDER_COLUMNS = `
-  id, entidad, nit_entidad, departamento, ciudad,
-  objeto, nombre, unspsc, unspsc_segment,
-  modalidad, tipo_contrato, subtipo_contrato,
-  precio_base, estado, fase,
-  fecha_publicacion, fecha_ultima, fecha_recepcion,
-  url, summary_es
-`;
+// API responses. Pass an alias when joining (e.g. against vector_top_k) to avoid
+// `ambiguous column name: id` against `knn.id`.
+const TENDER_COLUMN_NAMES = [
+  'id', 'entidad', 'nit_entidad', 'departamento', 'ciudad',
+  'objeto', 'nombre', 'unspsc', 'unspsc_segment',
+  'modalidad', 'tipo_contrato', 'subtipo_contrato',
+  'precio_base', 'estado', 'fase',
+  'fecha_publicacion', 'fecha_ultima', 'fecha_recepcion',
+  'url', 'summary_es',
+] as const;
+
+export function tenderColumns(alias?: string): string {
+  const prefix = alias ? `${alias}.` : '';
+  return TENDER_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(', ');
+}
+
+export const TENDER_COLUMNS = tenderColumns();
